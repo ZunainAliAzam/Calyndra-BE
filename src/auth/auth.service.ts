@@ -1,4 +1,8 @@
-import { Body, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+} from '@nestjs/common';
 import {
   CreateAuthDto,
   CreateLoginDto,
@@ -19,7 +23,6 @@ export class AuthService {
   private generateToken(user: any): AuthResponseDto {
     const payload = { sub: user.id, email: user.email };
     const token = this.jwtService.sign(payload);
-    const { password, ...userWithoutPassword } = user;
     return {
       user: {
         id: user.id,
@@ -27,12 +30,15 @@ export class AuthService {
         email: user.email,
         token: token,
       },
-      token: token,
     };
   }
 
-  async signup(@Body() createAuthDto: CreateAuthDto): Promise<AuthResponseDto> {
+  async signup(createAuthDto: CreateAuthDto): Promise<AuthResponseDto> {
     const { email, password, firstName, lastName } = createAuthDto;
+    const existing = await this.userService.findByEmailOrNull(email);
+    if (existing) {
+      throw new ConflictException('Email already in use');
+    }
     const hashedpassword = await bcrypt.hash(password, 10);
     const user = await this.userService.create({
       firstName,
@@ -43,13 +49,14 @@ export class AuthService {
     return this.generateToken(user);
   }
 
-  async login(
-    @Body() createLoginDto: CreateLoginDto,
-  ): Promise<AuthResponseDto> {
+  async login(createLoginDto: CreateLoginDto): Promise<AuthResponseDto> {
     const { email, password } = createLoginDto;
-    const user = await this.userService.findByEmail(email);
+    const user = await this.userService.findByEmailWithPassword(email);
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
     const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!user || !isPasswordValid) {
+    if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
     return this.generateToken(user);

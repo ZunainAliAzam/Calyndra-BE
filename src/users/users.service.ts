@@ -17,12 +17,24 @@ export class UsersService {
     return await this.userRepo.save(users);
   }
 
+  async findByEmailOrNull(email: string) {
+    return await this.userRepo.findOne({ where: { email } });
+  }
+
   async findByEmail(email: string) {
     const user = await this.userRepo.findOne({ where: { email } });
     if (!user) {
       throw new NotFoundException('User not found');
     }
     return user;
+  }
+
+  async findByEmailWithPassword(email: string) {
+    return await this.userRepo
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .where('user.email = :email', { email })
+      .getOne();
   }
 
   async findOne(id: string) {
