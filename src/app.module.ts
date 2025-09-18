@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EventsModule } from './events/events.module';
+import { RsvpModule } from './rsvp/rsvp.module';
 @Module({
   imports: [
     ConfigModule.forRoot(),
@@ -26,6 +27,7 @@ import { EventsModule } from './events/events.module';
     UsersModule,
     AuthModule,
     EventsModule,
+    RsvpModule,
   ],
   controllers: [AppController],
   providers: [AppService],
