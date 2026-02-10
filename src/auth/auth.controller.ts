@@ -30,6 +30,7 @@ export class AuthController {
     });
   }
 
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   @Post('signup')
   async signup(
     @Body() createAuthDto: CreateAuthDto,
@@ -51,6 +52,7 @@ export class AuthController {
     return userData;
   }
 
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('refresh')
   @HttpCode(200)
   async refresh(

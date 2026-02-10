@@ -11,9 +11,10 @@ import {
 import { UsersService } from 'src/users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThan } from 'typeorm';
+import { Repository, LessThan, MoreThan } from 'typeorm';
 import { RefreshToken } from './entities/auth.entity';
-import { randomBytes, createHash } from 'crypto';
+import { randomBytes, createHash, randomUUID } from 'crypto';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import * as bcrypt from 'bcrypt';
 
 interface AuthTokens {
@@ -36,16 +37,20 @@ export class AuthService {
     return this.jwtService.sign(payload);
   }
 
-  private async generateTokens(user: any): Promise<AuthTokens> {
+  private async generateTokens(user: any, family?: string): Promise<AuthTokens> {
     const accessToken = this.generateAccessToken(user);
 
     // Generate opaque refresh token
     const rawRefreshToken = randomBytes(32).toString('hex');
     const hashedToken = createHash('sha256').update(rawRefreshToken).digest('hex');
 
+    // Use existing family or create a new one
+    const tokenFamily = family ?? randomUUID();
+
     // Save hashed refresh token to DB
     const refreshToken = this.refreshTokenRepository.create({
       token: hashedToken,
+      family: tokenFamily,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
       user: { id: user.id },
     });
@@ -65,8 +70,14 @@ export class AuthService {
     };
   }
 
+  private normalizeEmail(email: string): string {
+    return email.trim().toLowerCase();
+  }
+
   async signup(createAuthDto: CreateAuthDto): Promise<AuthTokens> {
-    const { email, password, firstName, lastName } = createAuthDto;
+    const { password, firstName, lastName } = createAuthDto;
+    const email = this.normalizeEmail(createAuthDto.email);
+
     const existing = await this.userService.findByEmailOrNull(email);
     if (existing) {
       throw new ConflictException('Email already in use');
@@ -82,7 +93,9 @@ export class AuthService {
   }
 
   async login(createLoginDto: CreateLoginDto): Promise<AuthTokens> {
-    const { email, password } = createLoginDto;
+    const { password } = createLoginDto;
+    const email = this.normalizeEmail(createLoginDto.email);
+
     const user = await this.userService.findByEmailWithPassword(email);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
@@ -106,8 +119,16 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
-    // Delete old refresh token (rotation)
-    await this.refreshTokenRepository.remove(storedToken);
+    // Reuse detection: if the token was already revoked, the family is compromised
+    if (storedToken.isRevoked) {
+      // Revoke all tokens in this family
+      await this.refreshTokenRepository.delete({ family: storedToken.family });
+      throw new UnauthorizedException('Refresh token reuse detected — all sessions revoked');
+    }
+
+    // Revoke the current token (instead of deleting, mark as revoked for reuse detection)
+    storedToken.isRevoked = true;
+    await this.refreshTokenRepository.save(storedToken);
 
     // Fetch full user for token generation
     const user = await this.userService.findOne(storedToken.user.id);
@@ -115,11 +136,33 @@ export class AuthService {
       throw new UnauthorizedException('User not found or inactive');
     }
 
-    return this.generateTokens(user);
+    // Issue new tokens in the same family
+    return this.generateTokens(user, storedToken.family);
   }
 
   async logout(rawRefreshToken: string): Promise<void> {
     const hashedToken = createHash('sha256').update(rawRefreshToken).digest('hex');
-    await this.refreshTokenRepository.delete({ token: hashedToken });
+    const storedToken = await this.refreshTokenRepository.findOne({
+      where: { token: hashedToken },
+    });
+    if (storedToken) {
+      // Delete all tokens in this family to fully log out
+      await this.refreshTokenRepository.delete({ family: storedToken.family });
+    }
+  }
+
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  async purgeStaleTokens(): Promise<void> {
+    // Remove expired tokens
+    await this.refreshTokenRepository.delete({
+      expiresAt: LessThan(new Date()),
+    });
+
+    // Remove revoked tokens older than 24h (reuse detection window)
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    await this.refreshTokenRepository.delete({
+      isRevoked: true,
+      createdAt: LessThan(oneDayAgo),
+    });
   }
 }
