@@ -34,4 +34,7 @@ export class Event extends BaseEntity {
 
   @OneToMany(() => Rsvp, (rsvp) => rsvp.event)
   rsvps: Rsvp[];
+
+  @Column({ unique: true, nullable: true })
+  publicCode: string;
 }
