@@ -20,21 +20,23 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  private generateToken(user: any): AuthResponseDto {
+  private generateToken(user: any): {token: string, userData: AuthResponseDto} {
     const payload = { sub: user.id, email: user.email };
     const token = this.jwtService.sign(payload);
     return {
-      user: {
-        id: user.id,
-        username: `${user.firstName} ${user.lastName}`,
-        email: user.email,
-        role: user.role,
-        token: token,
-      },
+      token,
+      userData: {
+        user: {
+          id: user.id,
+          username: `${user.firstName} ${user.lastName}`,
+          email: user.email,
+          role: user.role,
+        },
+      }
     };
   }
 
-  async signup(createAuthDto: CreateAuthDto): Promise<AuthResponseDto> {
+  async signup(createAuthDto: CreateAuthDto): Promise<{token: string, userData: AuthResponseDto}> {
     const { email, password, firstName, lastName } = createAuthDto;
     const existing = await this.userService.findByEmailOrNull(email);
     if (existing) {
@@ -50,7 +52,7 @@ export class AuthService {
     return this.generateToken(user);
   }
 
-  async login(createLoginDto: CreateLoginDto): Promise<AuthResponseDto> {
+  async login(createLoginDto: CreateLoginDto): Promise<{token: string, userData: AuthResponseDto}> {
     const { email, password } = createLoginDto;
     const user = await this.userService.findByEmailWithPassword(email);
     if (!user) {

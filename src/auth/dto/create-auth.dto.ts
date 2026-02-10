@@ -36,6 +36,5 @@ export class AuthResponseDto {
     username: string;
     email: string;
     role: string;
-    token: string;
   };
 }
