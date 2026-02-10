@@ -1,33 +1,16 @@
+import { RsvpStatus } from 'src/calyndra-shared/constants/enum';
 import { BaseEntity } from 'src/calyndra-shared/entities/base.entity';
 import { Event } from 'src/events/entities/event.entity';
 import { User } from 'src/users/entities/user.entity';
-import { Column, Entity, ManyToOne } from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
 
 @Entity()
 export class Rsvp extends BaseEntity {
-  @ManyToOne(() => Event, (event) => event.rsvps, { eager: true })
-  event: Event;
-
-  @ManyToOne(() => User, (user) => user.rsvps, { eager: true })
-  user: User;
-
-  @Column({ nullable: true })
-  guestName: string;
-
-  @Column({ nullable: true })
-  guestEmail: string;
-
-  @Column({ nullable: true })
-  guestPhone: string;
-
-  @Column({ default: 'pending' })
-  status: string;
+  @Column({ type: 'enum', enum: RsvpStatus, default: RsvpStatus.PENDING })
+  status: number;
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   rsvpDate: Date;
-
-  @ManyToOne(() => User, (user) => user.id, { eager: true })
-  approvedBy: User;
 
   @Column({ type: 'timestamp', nullable: true })
   approvedAt: Date;
@@ -37,4 +20,21 @@ export class Rsvp extends BaseEntity {
 
   @Column({ type: 'timestamp', nullable: true })
   checkedInAt: Date;
+
+  @ManyToOne(() => User, (user) => user.id, { eager: true })
+  approvedBy: User;
+
+  @ManyToOne(() => Event, (event) => event.rsvps, { eager: false })
+  @JoinColumn({ name: 'eventId' })
+  event: Event;
+
+  @Column()
+  eventId: string;
+
+  @ManyToOne(() => User, (user) => user.rsvps, { eager: true })
+  @JoinColumn({ name: 'userId' })
+  user: User;
+
+  @Column()
+  userId: string;
 }

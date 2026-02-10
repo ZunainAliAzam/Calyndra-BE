@@ -1,20 +1,10 @@
-import { IsNotEmpty, IsString, IsOptional } from "class-validator";
+import { IsNotEmpty, IsString } from "class-validator";
 
 export class CreateRsvpDto {
-  // For guests
-  @IsOptional()
+  @IsNotEmpty()
   @IsString()
-  name?: string;
+  userId: string;
 
-  @IsOptional()
-  @IsString()
-  email?: string;
-
-  @IsOptional()
-  @IsString()
-  phone?: string;
-
-  // Always required
   @IsNotEmpty()
   @IsString()
   eventId: string;

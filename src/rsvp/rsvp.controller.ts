@@ -1,26 +1,41 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Put,
+} from '@nestjs/common';
 import { RsvpService } from './rsvp.service';
 import { CreateRsvpDto } from './dto/create-rsvp.dto';
 import { UpdateRsvpDto } from './dto/update-rsvp.dto';
 
-@Controller('rsvp')
+@Controller('rsvps')
 export class RsvpController {
   constructor(private readonly rsvpService: RsvpService) {}
-
-  @Post()
-  create(@Body() createRsvpDto: CreateRsvpDto) {
-    return this.rsvpService.create(createRsvpDto);
-  }
 
   @Get()
   findAll() {
     return this.rsvpService.findAll();
   }
 
+  @Put('/status/:id')
+  updateStatus(
+    @Param('id') id: string,
+    @Body('status') status: number,
+    @Body('eventId') eventId: string,
+    @Body('approvedBy') approvedBy: number,
+  ) {
+    return this.rsvpService.updateStatus(id, eventId, status, approvedBy);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.rsvpService.findOne(+id);
+    return this.rsvpService.findOne(id);
   }
+
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateRsvpDto: UpdateRsvpDto) {
@@ -29,6 +44,11 @@ export class RsvpController {
 
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.rsvpService.remove(+id);
+    return this.rsvpService.remove(id);
+  }
+
+  @Post('/user')
+  createRsvpByUser(@Body() createRsvpDto: CreateRsvpDto) {
+    return this.rsvpService.createUserRsvp(createRsvpDto);
   }
 }
