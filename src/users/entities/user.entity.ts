@@ -1,3 +1,4 @@
+import { UserRole } from 'src/calyndra-shared/constants/enum';
 import { BaseEntity } from 'src/calyndra-shared/entities/base.entity';
 import { Event } from 'src/events/entities/event.entity';
 import { Rsvp } from 'src/rsvp/entities/rsvp.entity';
@@ -18,6 +19,9 @@ export class User extends BaseEntity {
 
   @Column({ nullable: true })
   phone: string;
+
+  @Column({ type: 'enum', enum: UserRole, default: UserRole.USER })
+  role: UserRole;
 
   @Column({ default: true })
   isActive: boolean;
