@@ -9,7 +9,7 @@ import { EventsModule } from './events/events.module';
 import { RsvpModule } from './rsvp/rsvp.module';
 @Module({
   imports: [
-    ConfigModule.forRoot(),
+    ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
